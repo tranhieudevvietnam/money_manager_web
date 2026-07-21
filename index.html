@@ -22,15 +22,32 @@
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="spendPals">
-  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
   <title>spendPals</title>
   <link rel="manifest" href="manifest.json">
+
+  <!-- Add-to-Home-Screen banner styles -->
+  <style>
+    #a2hs-banner{display:none;position:fixed;left:12px;right:12px;bottom:12px;z-index:2147483000;
+      align-items:center;gap:12px;background:#0175C2;color:#fff;padding:12px 14px;border-radius:16px;
+      box-shadow:0 8px 24px rgba(0,0,0,.25);
+      font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
+    #a2hs-banner img{width:44px;height:44px;border-radius:10px;flex:0 0 auto}
+    #a2hs-banner .t{flex:1;min-width:0}
+    #a2hs-banner .t b{display:block;font-size:15px;font-weight:600}
+    #a2hs-banner .t span{display:block;font-size:13px;line-height:1.35;opacity:.92}
+    #a2hs-banner button{border:0;cursor:pointer;font-weight:600}
+    #a2hs-install{background:#fff;color:#0175C2;padding:9px 14px;border-radius:10px;font-size:14px}
+    #a2hs-close{background:transparent;color:#fff;font-size:18px;line-height:1;padding:4px 6px;opacity:.85}
+    @media(min-width:640px){#a2hs-banner{left:auto;right:16px;max-width:380px}}
+  </style>
 </head>
 <body>
   <!--
@@ -42,5 +59,68 @@
     * https://docs.flutter.dev/platform-integration/web/initialization
   -->
   <script src="flutter_bootstrap.js" async></script>
+
+  <!-- Add to Home Screen prompt (PWA) -->
+  <div id="a2hs-banner" role="dialog" aria-label="Cài đặt ứng dụng">
+    <img src="icons/icon-192.png" alt="spendPals">
+    <div class="t">
+      <b>Cài đặt spendPals</b>
+      <span id="a2hs-desc">Thêm vào màn hình chính để mở nhanh như một ứng dụng.</span>
+    </div>
+    <button id="a2hs-install">Cài đặt</button>
+    <button id="a2hs-close" aria-label="Đóng">&#10005;</button>
+  </div>
+  <script>
+    (function () {
+      var banner = document.getElementById('a2hs-banner');
+      var installBtn = document.getElementById('a2hs-install');
+      var closeBtn = document.getElementById('a2hs-close');
+      var desc = document.getElementById('a2hs-desc');
+      var deferred = null;
+
+      var ua = navigator.userAgent || '';
+      var isStandalone = window.matchMedia('(display-mode: standalone)').matches
+        || navigator.standalone === true;
+      var isIOS = /iphone|ipad|ipod/i.test(ua)
+        || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      var dismissed = false;
+      try { dismissed = localStorage.getItem('a2hs-dismissed') === '1'; } catch (e) {}
+
+      // Đã cài (mở dạng standalone) hoặc user đã tắt banner -> không hiện lại
+      if (isStandalone || dismissed) return;
+
+      function show(){ banner.style.display = 'flex'; }
+      function hide(){ banner.style.display = 'none'; }
+      function remember(){ try { localStorage.setItem('a2hs-dismissed', '1'); } catch (e) {} }
+
+      closeBtn.addEventListener('click', function () { hide(); remember(); });
+
+      // Android / Chrome / Edge — cài 1 chạm
+      window.addEventListener('beforeinstallprompt', function (e) {
+        e.preventDefault();
+        deferred = e;
+        installBtn.style.display = '';
+        show();
+      });
+      installBtn.addEventListener('click', function () {
+        if (!deferred) return;
+        deferred.prompt();
+        deferred.userChoice.then(function (choice) {
+          deferred = null;
+          hide();
+          if (choice && choice.outcome === 'accepted') remember();
+        });
+      });
+      window.addEventListener('appinstalled', function () { hide(); remember(); });
+
+      // iOS Safari — không có API cài, hiện hướng dẫn thủ công
+      if (isIOS) {
+        installBtn.style.display = 'none';
+        desc.innerHTML = 'Bấm nút <b style="display:inline;font-weight:700">Chia sẻ</b> &#8593; ở thanh dưới, '
+          + 'rồi chọn <b style="display:inline;font-weight:700">&ldquo;Thêm vào MH chính&rdquo;</b>.';
+        setTimeout(show, 1500); // đợi app load xong rồi mới hiện
+      }
+    })();
+  </script>
 </body>
 </html>
